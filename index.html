@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Masterplan Interface v1.03</title>
+    <title>Interactive Masterplan Interface v1.04</title>
     
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet Draw CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
     
     <style>
         * {
@@ -34,7 +36,7 @@
         }
         
         #sidebar {
-            width: 380px;
+            width: 400px;
             background: white;
             border-left: 1px solid #ddd;
             display: flex;
@@ -140,6 +142,7 @@
             cursor: pointer;
             width: 100%;
             transition: background 0.2s;
+            margin-bottom: 10px;
         }
         
         .btn-primary {
@@ -154,25 +157,44 @@
         .btn-secondary {
             background: #95a5a6;
             color: white;
-            margin-top: 10px;
         }
         
         .btn-secondary:hover {
             background: #7f8c8d;
         }
         
-        .btn-location {
-            background: #e67e22;
+        .btn-success {
+            background: #27ae60;
             color: white;
-            margin-bottom: 10px;
         }
         
-        .btn-location:hover {
+        .btn-success:hover {
+            background: #229954;
+        }
+        
+        .btn-warning {
+            background: #e67e22;
+            color: white;
+        }
+        
+        .btn-warning:hover {
             background: #d35400;
         }
         
-        .btn-location.active {
-            background: #27ae60;
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .btn-group .btn {
+            margin-bottom: 0;
         }
         
         .plot-list {
@@ -185,9 +207,6 @@
         .plot-item {
             padding: 12px;
             border-bottom: 1px solid #f0f0f0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             cursor: pointer;
             transition: background 0.2s;
         }
@@ -200,8 +219,11 @@
             border-bottom: none;
         }
         
-        .plot-info {
-            flex: 1;
+        .plot-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
         }
         
         .plot-number {
@@ -213,12 +235,13 @@
         .plot-details {
             font-size: 11px;
             color: #7f8c8d;
-            margin-top: 3px;
+            line-height: 1.5;
         }
         
         .plot-actions {
             display: flex;
             gap: 5px;
+            margin-top: 8px;
         }
         
         .btn-small {
@@ -227,6 +250,7 @@
             border: none;
             border-radius: 3px;
             cursor: pointer;
+            flex: 1;
         }
         
         .btn-edit {
@@ -239,83 +263,148 @@
             color: white;
         }
         
-        .coords-display {
-            font-size: 11px;
-            color: #7f8c8d;
-            margin-top: 5px;
-        }
-        
         .empty-state {
             text-align: center;
             padding: 40px 20px;
             color: #95a5a6;
         }
         
+        .info-box {
+            background: #ecf0f1;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #555;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+        
+        .info-box strong {
+            color: #2c3e50;
+        }
+        
         .radio-group {
             display: flex;
-            gap: 15px;
+            flex-direction: column;
+            gap: 8px;
             margin-top: 8px;
         }
         
-        .radio-group label {
+        .radio-option {
             display: flex;
             align-items: center;
-            gap: 5px;
-            font-size: 13px;
-            color: #555;
+            gap: 8px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
             cursor: pointer;
+            transition: all 0.2s;
         }
         
-        /* Leaflet map styling */
+        .radio-option:hover {
+            border-color: #3498db;
+            background: #f8f9fa;
+        }
+        
+        .radio-option input[type="radio"] {
+            width: auto;
+        }
+        
+        .radio-option.selected {
+            border-color: #3498db;
+            background: #e3f2fd;
+        }
+        
+        .radio-label {
+            flex: 1;
+        }
+        
+        .radio-label strong {
+            display: block;
+            font-size: 13px;
+            color: #2c3e50;
+            margin-bottom: 2px;
+        }
+        
+        .radio-label span {
+            font-size: 11px;
+            color: #7f8c8d;
+        }
+        
+        /* Leaflet customizations */
         .leaflet-container {
             width: 100%;
             height: 100%;
             background: #e0e0e0;
         }
         
-        /* Custom marker styling */
-        .building-marker {
-            border-radius: 50%;
-            border: 2px solid rgba(255,255,255,0.8);
+        /* Plot boundary styling */
+        .plot-boundary {
+            fill-opacity: 0.2;
+            stroke-width: 2;
+        }
+        
+        .plot-boundary.selected {
+            fill-opacity: 0.3;
+            stroke-width: 3;
+        }
+        
+        /* Building footprint styling */
+        .building-footprint {
+            fill-opacity: 0.7;
+            stroke-width: 2;
+            stroke: #fff;
+        }
+        
+        .status-bar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(44, 62, 80, 0.95);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 13px;
+            z-index: 1000;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            display: none;
         }
         
-        .building-marker.square {
-            border-radius: 0;
-        }
-        
-        .building-marker.hexagon {
-            border-radius: 10%;
-        }
-        
-        .building-marker.octagon {
-            border-radius: 15%;
+        .status-bar.active {
+            display: block;
         }
     </style>
 </head>
 <body>
     <div id="app">
-        <div id="map"></div>
+        <div id="map">
+            <div id="status-bar" class="status-bar"></div>
+        </div>
         <div id="sidebar">
             <div id="header">
                 <h1>Masterplan Interface</h1>
-                <p>Dubai Development Site - v1.03</p>
+                <p>Dubai Development Site - v1.04</p>
             </div>
             <div id="controls">
-                <!-- Form sections will be inserted here by JavaScript -->
+                <!-- Controls will be inserted here -->
             </div>
         </div>
     </div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet Draw JS -->
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    <!-- Leaflet Snap (for snapping to corners) -->
+    <script src="https://unpkg.com/leaflet-geometryutil@0.9.3/src/leaflet.geometryutil.js"></script>
     
     <script>
         // Configuration
         const INITIAL_VIEW = {
             lat: 25.2048,
             lng: 55.2708,
-            zoom: 16
+            zoom: 18
         };
 
         const LAND_USES = {
@@ -331,29 +420,34 @@
         };
 
         const BUILDING_SHAPES = {
-            circle: { label: 'Circle', class: '' },
-            square: { label: 'Square', class: 'square' },
-            hexagon: { label: 'Hexagon', class: 'hexagon' },
-            octagon: { label: 'Octagon', class: 'octagon' }
+            rectangle: { label: 'Rectangle' },
+            square: { label: 'Square' },
+            polygon: { label: 'Custom Polygon' }
         };
 
         // State
         let map;
+        let drawnItems;
+        let drawControl;
         let plots = [];
-        let markers = [];
-        let isSelectingLocation = false;
+        let currentMode = 'list'; // list, draw-polygon, draw-freehand, select-existing, place-building
+        let selectedPlot = null;
         let editingPlot = null;
+        let tempBoundary = null;
+        let plotCreationMode = null; // 'new' or 'existing'
+        
         let formData = {
             plotNumber: '',
             districtName: '',
             landUse: 'residential',
-            shape: 'circle',
+            buildingShape: 'rectangle',
             customColor: '#FFDC64',
             height: 30,
-            area: 1000,
-            unitCount: 10,
-            lat: INITIAL_VIEW.lat,
-            lng: INITIAL_VIEW.lng
+            plotArea: 0,
+            buildingFootprintRatio: 60, // percentage of plot
+            buildingOffsetX: 0, // meters from plot center
+            buildingOffsetY: 0, // meters from plot center
+            coordinates: null
         };
 
         // Initialize map
@@ -367,152 +461,203 @@
             // Add OpenStreetMap tiles
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors',
-                maxZoom: 19
+                maxZoom: 22
             }).addTo(map);
 
-            // Handle map clicks for location selection
+            // Initialize drawn items layer
+            drawnItems = new L.FeatureGroup();
+            map.addLayer(drawnItems);
+
+            // Initialize draw control
+            drawControl = new L.Control.Draw({
+                position: 'topright',
+                draw: {
+                    polygon: {
+                        allowIntersection: false,
+                        shapeOptions: {
+                            color: '#3498db',
+                            weight: 2,
+                            fillOpacity: 0.2
+                        },
+                        snapDistance: 10 // Enable snapping
+                    },
+                    polyline: false,
+                    rectangle: {
+                        shapeOptions: {
+                            color: '#3498db',
+                            weight: 2,
+                            fillOpacity: 0.2
+                        }
+                    },
+                    circle: false,
+                    circlemarker: false,
+                    marker: false
+                },
+                edit: {
+                    featureGroup: drawnItems,
+                    remove: false
+                }
+            });
+
+            // Handle draw events
+            map.on(L.Draw.Event.CREATED, function(e) {
+                const layer = e.layer;
+                tempBoundary = layer;
+                
+                // Calculate area
+                const area = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
+                formData.plotArea = Math.round(area);
+                formData.coordinates = layer.getLatLngs()[0];
+                
+                drawnItems.addLayer(layer);
+                
+                // Proceed to building placement
+                showBuildingPlacementForm();
+            });
+
+            // Handle click on existing plots
             map.on('click', function(e) {
-                if (isSelectingLocation) {
-                    formData.lat = e.latlng.lat;
-                    formData.lng = e.latlng.lng;
-                    updateCoordsDisplay();
-                    setSelectingLocation(false);
+                if (currentMode === 'select-existing') {
+                    handlePlotSelection(e.latlng);
                 }
             });
 
             console.log('Map initialized successfully');
+            showStartScreen();
         }
 
-        // Create marker for a plot
-        function createMarker(plot) {
-            const size = Math.max(10, plot.height / 2); // Size based on height
-            const color = plot.customColor || LAND_USES[plot.landUse].color;
-            const shapeClass = BUILDING_SHAPES[plot.shape].class;
-
-            const icon = L.divIcon({
-                className: 'building-marker ' + shapeClass,
-                html: `<div style="width: ${size}px; height: ${size}px; background-color: ${color}; border-radius: ${shapeClass === '' ? '50%' : '0'}"></div>`,
-                iconSize: [size, size],
-                iconAnchor: [size/2, size/2]
-            });
-
-            const marker = L.marker([plot.lat, plot.lng], { icon: icon }).addTo(map);
-            
-            marker.bindPopup(`
-                <strong>${plot.plotNumber}</strong><br>
-                District: ${plot.districtName}<br>
-                Land Use: ${LAND_USES[plot.landUse].label}<br>
-                Shape: ${BUILDING_SHAPES[plot.shape].label}<br>
-                Height: ${plot.height}m<br>
-                Area: ${plot.area}m²<br>
-                Units: ${plot.unitCount}
-            `);
-
-            return marker;
+        // Show status message
+        function showStatus(message) {
+            const statusBar = document.getElementById('status-bar');
+            statusBar.textContent = message;
+            statusBar.classList.add('active');
+            setTimeout(() => statusBar.classList.remove('active'), 3000);
         }
 
-        // Update all markers on map
-        function updateMarkers() {
-            // Remove old markers
-            markers.forEach(m => map.removeLayer(m));
-            markers = [];
-
-            // Add new markers
-            plots.forEach(plot => {
-                const marker = createMarker(plot);
-                markers.push(marker);
-            });
-        }
-
-        // Set location selection mode
-        function setSelectingLocation(active) {
-            isSelectingLocation = active;
-            const btn = document.getElementById('btn-select-location');
-            if (active) {
-                btn.textContent = 'Click on Map...';
-                btn.classList.add('active');
-                map.getContainer().style.cursor = 'crosshair';
-            } else {
-                btn.textContent = 'Select Location on Map';
-                btn.classList.remove('active');
-                map.getContainer().style.cursor = '';
-            }
-        }
-
-        // Update coordinates display
-        function updateCoordsDisplay() {
-            document.getElementById('coords-display').textContent = 
-                `Lat: ${formData.lat.toFixed(6)}, Lng: ${formData.lng.toFixed(6)}`;
-        }
-
-        // Add or update plot
-        function addPlot() {
-            if (!formData.plotNumber || !formData.districtName) {
-                alert('Please enter Plot Number and District Name');
-                return;
-            }
-
-            const plot = {
-                id: editingPlot ? editingPlot.id : Date.now(),
-                ...formData
-            };
-
-            if (editingPlot) {
-                const index = plots.findIndex(p => p.id === editingPlot.id);
-                plots[index] = plot;
-                editingPlot = null;
-            } else {
-                plots.push(plot);
-            }
-
-            resetForm();
-            updateMarkers();
-            renderPlotList();
-            renderFormButtons();
-        }
-
-        // Edit plot
-        function editPlot(id) {
-            const plot = plots.find(p => p.id === id);
-            if (plot) {
-                editingPlot = plot;
-                formData = { ...plot };
-                renderForm();
-                updateCoordsDisplay();
-            }
-        }
-
-        // Delete plot
-        function deletePlot(id) {
-            plots = plots.filter(p => p.id !== id);
-            updateMarkers();
-            renderPlotList();
-        }
-
-        // Reset form
-        function resetForm() {
-            editingPlot = null;
-            formData = {
-                plotNumber: '',
-                districtName: '',
-                landUse: 'residential',
-                shape: 'circle',
-                customColor: '#FFDC64',
-                height: 30,
-                area: 1000,
-                unitCount: 10,
-                lat: INITIAL_VIEW.lat,
-                lng: INITIAL_VIEW.lng
-            };
-            renderForm();
-            updateCoordsDisplay();
-        }
-
-        // Render form
-        function renderForm() {
-            const form = `
+        // Show start screen
+        function showStartScreen() {
+            currentMode = 'list';
+            const html = `
                 <div class="section">
-                    <div class="section-title">${editingPlot ? 'Edit Plot' : 'Add New Plot'}</div>
+                    <div class="section-title">Create New Plot</div>
+                    <div class="info-box">
+                        Choose how you want to define the plot boundary
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="startDrawPolygon()">
+                        📐 Draw Plot Boundary (Polygon)
+                    </button>
+                    
+                    <button class="btn btn-primary" onclick="startDrawRectangle()">
+                        ⬜ Draw Plot Boundary (Rectangle)
+                    </button>
+                    
+                    <button class="btn btn-warning" onclick="startSelectExisting()">
+                        🎯 Select Existing Plot
+                    </button>
+                </div>
+                
+                <div id="plot-list-container"></div>
+            `;
+            
+            document.getElementById('controls').innerHTML = html;
+            renderPlotList();
+        }
+
+        // Start drawing polygon
+        function startDrawPolygon() {
+            currentMode = 'draw-polygon';
+            plotCreationMode = 'new';
+            
+            // Clear any temp boundaries
+            if (tempBoundary) {
+                drawnItems.removeLayer(tempBoundary);
+                tempBoundary = null;
+            }
+            
+            showStatus('Click on map to draw polygon boundary. Double-click to finish. Points will snap to nearby corners.');
+            
+            // Activate polygon drawing
+            new L.Draw.Polygon(map, drawControl.options.draw.polygon).enable();
+        }
+
+        // Start drawing rectangle
+        function startDrawRectangle() {
+            currentMode = 'draw-rectangle';
+            plotCreationMode = 'new';
+            
+            // Clear any temp boundaries
+            if (tempBoundary) {
+                drawnItems.removeLayer(tempBoundary);
+                tempBoundary = null;
+            }
+            
+            showStatus('Click and drag on map to draw rectangular boundary');
+            
+            // Activate rectangle drawing
+            new L.Draw.Rectangle(map, drawControl.options.draw.rectangle).enable();
+        }
+
+        // Start selecting existing plot
+        function startSelectExisting() {
+            currentMode = 'select-existing';
+            showStatus('Click on an existing plot on the map');
+            
+            const html = `
+                <div class="section">
+                    <div class="section-title">Select Existing Plot</div>
+                    <div class="info-box">
+                        Click on a plot boundary on the map to use its dimensions
+                    </div>
+                    
+                    <button class="btn btn-secondary" onclick="cancelSelection()">
+                        Cancel
+                    </button>
+                </div>
+            `;
+            
+            document.getElementById('controls').innerHTML = html;
+        }
+
+        // Handle plot selection from map
+        function handlePlotSelection(latlng) {
+            // Check if clicked inside any existing plot
+            let clickedPlot = null;
+            
+            plots.forEach(plot => {
+                if (plot.layer && plot.layer.getBounds().contains(latlng)) {
+                    clickedPlot = plot;
+                }
+            });
+            
+            if (clickedPlot) {
+                plotCreationMode = 'existing';
+                formData.coordinates = clickedPlot.coordinates;
+                formData.plotArea = clickedPlot.plotArea;
+                showBuildingPlacementForm();
+            } else {
+                showStatus('No plot found at this location. Please click on a plot boundary.');
+            }
+        }
+
+        // Cancel selection
+        function cancelSelection() {
+            currentMode = 'list';
+            showStartScreen();
+        }
+
+        // Show building placement form
+        function showBuildingPlacementForm() {
+            currentMode = 'place-building';
+            
+            const html = `
+                <div class="section">
+                    <div class="section-title">Plot Details</div>
+                    
+                    <div class="info-box">
+                        <strong>Plot Area:</strong> ${formData.plotArea.toLocaleString()} m²<br>
+                        ${plotCreationMode === 'existing' ? '<strong>Using existing plot boundaries</strong>' : '<strong>New plot boundary created</strong>'}
+                    </div>
                     
                     <div class="form-group">
                         <label>Plot Number</label>
@@ -532,12 +677,16 @@
                             ).join('')}
                         </select>
                     </div>
+                </div>
 
+                <div class="section">
+                    <div class="section-title">Building Configuration</div>
+                    
                     <div class="form-group">
                         <label>Building Shape</label>
-                        <select id="input-shape">
+                        <select id="input-buildingShape">
                             ${Object.entries(BUILDING_SHAPES).map(([key, value]) => 
-                                `<option value="${key}" ${formData.shape === key ? 'selected' : ''}>${value.label}</option>`
+                                `<option value="${key}" ${formData.buildingShape === key ? 'selected' : ''}>${value.label}</option>`
                             ).join('')}
                         </select>
                     </div>
@@ -545,12 +694,6 @@
                     <div class="form-group">
                         <label>Building Color</label>
                         <input type="color" id="input-customColor" value="${formData.customColor}" style="height: 40px; cursor: pointer;">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Plot Location</label>
-                        <button class="btn btn-location" id="btn-select-location">Select Location on Map</button>
-                        <div id="coords-display" class="coords-display">Lat: ${formData.lat.toFixed(6)}, Lng: ${formData.lng.toFixed(6)}</div>
                     </div>
 
                     <div class="slider-group">
@@ -561,61 +704,195 @@
                         <input type="range" id="input-height" min="5" max="200" value="${formData.height}">
                     </div>
 
-                    <div class="form-group">
-                        <label>Plot Area (m²)</label>
-                        <input type="number" id="input-area" value="${formData.area}">
+                    <div class="slider-group">
+                        <label>
+                            <span>Building Footprint</span>
+                            <span id="footprint-display">${formData.buildingFootprintRatio}% of plot</span>
+                        </label>
+                        <input type="range" id="input-footprint" min="10" max="100" value="${formData.buildingFootprintRatio}">
+                        <div style="font-size: 11px; color: #7f8c8d; margin-top: 5px;">
+                            ${Math.round(formData.plotArea * formData.buildingFootprintRatio / 100).toLocaleString()} m² building area
+                        </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Unit Count</label>
-                        <input type="number" id="input-unitCount" value="${formData.unitCount}">
+                    <div class="slider-group">
+                        <label>
+                            <span>Building Position - X Offset</span>
+                            <span id="offsetX-display">${formData.buildingOffsetX}m</span>
+                        </label>
+                        <input type="range" id="input-offsetX" min="-50" max="50" value="${formData.buildingOffsetX}">
                     </div>
 
-                    <button class="btn btn-primary" id="btn-add-plot">${editingPlot ? 'Update Plot' : 'Add Plot'}</button>
-                    ${editingPlot ? '<button class="btn btn-secondary" id="btn-cancel">Cancel Edit</button>' : ''}
+                    <div class="slider-group">
+                        <label>
+                            <span>Building Position - Y Offset</span>
+                            <span id="offsetY-display">${formData.buildingOffsetY}m</span>
+                        </label>
+                        <input type="range" id="input-offsetY" min="-50" max="50" value="${formData.buildingOffsetY}">
+                    </div>
                 </div>
 
-                <div id="plot-list-container"></div>
+                <div class="section">
+                    <button class="btn btn-success" onclick="savePlot()">
+                        ✓ Save Plot & Building
+                    </button>
+                    
+                    <button class="btn btn-secondary" onclick="cancelPlot()">
+                        Cancel
+                    </button>
+                </div>
             `;
-
-            document.getElementById('controls').innerHTML = form;
-            attachFormListeners();
-            renderPlotList();
+            
+            document.getElementById('controls').innerHTML = html;
+            attachBuildingFormListeners();
+            updateBuildingPreview();
         }
 
-        // Attach event listeners to form
-        function attachFormListeners() {
-            ['plotNumber', 'districtName', 'landUse', 'shape', 'customColor', 'height', 'area', 'unitCount'].forEach(field => {
+        // Attach listeners to building form
+        function attachBuildingFormListeners() {
+            const fields = ['plotNumber', 'districtName', 'landUse', 'buildingShape', 'customColor', 'height', 'footprint', 'offsetX', 'offsetY'];
+            
+            fields.forEach(field => {
                 const input = document.getElementById('input-' + field);
-                if (input) {
-                    input.addEventListener('change', (e) => {
-                        formData[field] = field === 'height' || field === 'area' || field === 'unitCount' 
-                            ? parseFloat(e.target.value) 
-                            : e.target.value;
-                        
-                        if (field === 'height') {
-                            document.getElementById('height-display').textContent = formData.height + 'm';
-                        }
-                    });
-
-                    if (input.type === 'range') {
-                        input.addEventListener('input', (e) => {
-                            formData[field] = parseFloat(e.target.value);
-                            document.getElementById('height-display').textContent = formData.height + 'm';
-                        });
+                if (!input) return;
+                
+                const updateFn = (e) => {
+                    const value = e.target.value;
+                    
+                    if (field === 'height') {
+                        formData.height = parseFloat(value);
+                        document.getElementById('height-display').textContent = formData.height + 'm';
+                    } else if (field === 'footprint') {
+                        formData.buildingFootprintRatio = parseFloat(value);
+                        document.getElementById('footprint-display').textContent = formData.buildingFootprintRatio + '% of plot';
+                        const buildingArea = Math.round(formData.plotArea * formData.buildingFootprintRatio / 100);
+                        document.querySelector('#input-footprint + div').textContent = buildingArea.toLocaleString() + ' m² building area';
+                    } else if (field === 'offsetX') {
+                        formData.buildingOffsetX = parseFloat(value);
+                        document.getElementById('offsetX-display').textContent = formData.buildingOffsetX + 'm';
+                    } else if (field === 'offsetY') {
+                        formData.buildingOffsetY = parseFloat(value);
+                        document.getElementById('offsetY-display').textContent = formData.buildingOffsetY + 'm';
+                    } else {
+                        formData[field] = value;
                     }
-                }
+                    
+                    updateBuildingPreview();
+                };
+                
+                input.addEventListener('input', updateFn);
+                input.addEventListener('change', updateFn);
             });
+        }
 
-            document.getElementById('btn-select-location').addEventListener('click', () => {
-                setSelectingLocation(true);
-            });
+        // Update building preview on map
+        function updateBuildingPreview() {
+            // This would update the visual preview of the building within the plot
+            // For now, we'll just log it
+            console.log('Building preview updated', formData);
+        }
 
-            document.getElementById('btn-add-plot').addEventListener('click', addPlot);
-
-            if (editingPlot) {
-                document.getElementById('btn-cancel').addEventListener('click', resetForm);
+        // Save plot
+        function savePlot() {
+            if (!formData.plotNumber || !formData.districtName) {
+                alert('Please enter Plot Number and District Name');
+                return;
             }
+
+            if (!formData.coordinates) {
+                alert('No plot boundary defined');
+                return;
+            }
+
+            const plot = {
+                id: Date.now(),
+                ...formData,
+                layer: tempBoundary
+            };
+
+            plots.push(plot);
+            
+            // Style the boundary
+            if (tempBoundary) {
+                tempBoundary.setStyle({
+                    color: formData.customColor,
+                    fillColor: formData.customColor,
+                    fillOpacity: 0.3,
+                    weight: 2
+                });
+                
+                // Add popup
+                const buildingArea = Math.round(formData.plotArea * formData.buildingFootprintRatio / 100);
+                tempBoundary.bindPopup(`
+                    <strong>${formData.plotNumber}</strong><br>
+                    District: ${formData.districtName}<br>
+                    Land Use: ${LAND_USES[formData.landUse].label}<br>
+                    Height: ${formData.height}m<br>
+                    Plot Area: ${formData.plotArea.toLocaleString()}m²<br>
+                    Building Footprint: ${buildingArea.toLocaleString()}m² (${formData.buildingFootprintRatio}%)
+                `);
+            }
+
+            // Reset
+            tempBoundary = null;
+            resetFormData();
+            showStartScreen();
+            showStatus('Plot saved successfully!');
+        }
+
+        // Cancel plot creation
+        function cancelPlot() {
+            if (tempBoundary) {
+                drawnItems.removeLayer(tempBoundary);
+                tempBoundary = null;
+            }
+            resetFormData();
+            showStartScreen();
+        }
+
+        // Reset form data
+        function resetFormData() {
+            formData = {
+                plotNumber: '',
+                districtName: '',
+                landUse: 'residential',
+                buildingShape: 'rectangle',
+                customColor: '#FFDC64',
+                height: 30,
+                plotArea: 0,
+                buildingFootprintRatio: 60,
+                buildingOffsetX: 0,
+                buildingOffsetY: 0,
+                coordinates: null
+            };
+        }
+
+        // Edit plot
+        function editPlot(id) {
+            const plot = plots.find(p => p.id === id);
+            if (!plot) return;
+            
+            editingPlot = plot;
+            formData = { ...plot };
+            tempBoundary = plot.layer;
+            
+            showBuildingPlacementForm();
+        }
+
+        // Delete plot
+        function deletePlot(id) {
+            const plot = plots.find(p => p.id === id);
+            if (!plot) return;
+            
+            if (!confirm(`Delete plot ${plot.plotNumber}?`)) return;
+            
+            if (plot.layer) {
+                drawnItems.removeLayer(plot.layer);
+            }
+            
+            plots = plots.filter(p => p.id !== id);
+            renderPlotList();
+            showStatus('Plot deleted');
         }
 
         // Render plot list
@@ -626,51 +903,49 @@
             if (plots.length === 0) {
                 container.innerHTML = `
                     <div class="section">
-                        <div class="section-title">Plot List (0)</div>
+                        <div class="section-title">Existing Plots (0)</div>
                         <div class="empty-state">
-                            <p>No plots added yet.<br>Use the form above to add your first plot.</p>
+                            <p>No plots created yet.<br>Use the buttons above to create your first plot.</p>
                         </div>
                     </div>
                 `;
                 return;
             }
 
-            const list = plots.map(plot => `
-                <div class="plot-item">
-                    <div class="plot-info">
-                        <div class="plot-number">${plot.plotNumber}</div>
+            const list = plots.map(plot => {
+                const buildingArea = Math.round(plot.plotArea * plot.buildingFootprintRatio / 100);
+                return `
+                    <div class="plot-item" onclick="map.setView([${plot.coordinates[0].lat}, ${plot.coordinates[0].lng}], 19)">
+                        <div class="plot-header">
+                            <div class="plot-number">${plot.plotNumber}</div>
+                        </div>
                         <div class="plot-details">
-                            ${plot.districtName} • ${LAND_USES[plot.landUse].label} • ${BUILDING_SHAPES[plot.shape].label} • ${plot.height}m
+                            <strong>District:</strong> ${plot.districtName}<br>
+                            <strong>Land Use:</strong> ${LAND_USES[plot.landUse].label}<br>
+                            <strong>Height:</strong> ${plot.height}m<br>
+                            <strong>Plot Area:</strong> ${plot.plotArea.toLocaleString()}m²<br>
+                            <strong>Building:</strong> ${buildingArea.toLocaleString()}m² (${plot.buildingFootprintRatio}%)
+                        </div>
+                        <div class="plot-actions">
+                            <button class="btn-small btn-edit" onclick="event.stopPropagation(); editPlot(${plot.id})">Edit</button>
+                            <button class="btn-small btn-delete" onclick="event.stopPropagation(); deletePlot(${plot.id})">Delete</button>
                         </div>
                     </div>
-                    <div class="plot-actions">
-                        <button class="btn-small btn-edit" onclick="editPlot(${plot.id})">Edit</button>
-                        <button class="btn-small btn-delete" onclick="deletePlot(${plot.id})">Delete</button>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
 
             container.innerHTML = `
                 <div class="section">
-                    <div class="section-title">Plot List (${plots.length})</div>
+                    <div class="section-title">Existing Plots (${plots.length})</div>
                     <div class="plot-list">${list}</div>
                 </div>
             `;
         }
 
-        // Render form buttons
-        function renderFormButtons() {
-            const btn = document.getElementById('btn-add-plot');
-            if (btn) {
-                btn.textContent = editingPlot ? 'Update Plot' : 'Add Plot';
-            }
-        }
-
         // Initialize app
         window.addEventListener('load', () => {
-            console.log('Initializing app...');
+            console.log('Initializing app v1.04...');
             initMap();
-            renderForm();
         });
     </script>
 </body>

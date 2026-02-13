@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Masterplan Interface v1.07</title>
+    <title>Masterplan Interface v1.08</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
@@ -181,6 +181,18 @@
             line-height: 1.5;
         }
         
+        .warning-box {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #856404;
+            margin-bottom: 15px;
+            line-height: 1.5;
+            font-weight: 600;
+        }
+        
         .empty-state {
             text-align: center;
             padding: 40px 20px;
@@ -194,12 +206,13 @@
             transform: translateX(-50%);
             background: rgba(44, 62, 80, 0.95);
             color: white;
-            padding: 12px 24px;
+            padding: 15px 30px;
             border-radius: 4px;
-            font-size: 13px;
+            font-size: 14px;
             z-index: 1000;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
             display: none;
+            font-weight: 500;
         }
         
         .status-bar.active { display: block; }
@@ -220,6 +233,11 @@
             position: relative;
             transition: all 0.3s;
         }
+
+        /* Hide default Leaflet draw toolbar */
+        .leaflet-draw {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -230,7 +248,7 @@
         <div id="sidebar">
             <div id="header">
                 <h1>Masterplan Interface</h1>
-                <p>Dubai Development Site - v1.07</p>
+                <p>Dubai Development Site - v1.08</p>
             </div>
             <div id="controls"></div>
         </div>
@@ -243,7 +261,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <script>
-        console.log('Starting v1.07...');
+        console.log('Starting v1.08...');
         
         const INITIAL_VIEW = { lat: 25.2048, lng: 55.2708, zoom: 17 };
         
@@ -259,7 +277,7 @@
             open_space: { label: 'Open Space', color: '#96FF96' }
         };
         
-        let map, drawnItems, drawControl;
+        let map, drawnItems, currentDrawer;
         let plots = [];
         let formData = {
             plotNumber: '',
@@ -269,7 +287,8 @@
             height: 30,
             plotArea: 0,
             buildingFootprintRatio: 60,
-            layer: null
+            layer: null,
+            shapeType: null
         };
         
         function initMap() {
@@ -285,56 +304,108 @@
             drawnItems = new L.FeatureGroup();
             map.addLayer(drawnItems);
             
-            drawControl = new L.Control.Draw({
-                position: 'topright',
-                draw: {
-                    polygon: {
-                        allowIntersection: false,
-                        shapeOptions: { color: '#3498db' }
-                    },
-                    polyline: false,
-                    rectangle: true,
-                    circle: false,
-                    marker: false,
-                    circlemarker: false
-                },
-                edit: { featureGroup: drawnItems, remove: false }
-            });
-            
-            map.addControl(drawControl);
-            
-            map.on(L.Draw.Event.CREATED, function(e) {
-                const layer = e.layer;
-                const latlngs = layer.getLatLngs()[0];
-                const polygon = turf.polygon([latlngs.map(ll => [ll.lng, ll.lat])]);
-                const area = turf.area(polygon);
-                
-                formData.plotArea = Math.round(area);
-                formData.layer = layer;
-                drawnItems.addLayer(layer);
-                
-                showBuildingForm();
-            });
+            // Listen for draw events
+            map.on(L.Draw.Event.CREATED, handleDrawComplete);
             
             console.log('Map initialized');
             showStartScreen();
+        }
+        
+        function handleDrawComplete(e) {
+            const layer = e.layer;
+            let latlngs, polygon, area;
+            
+            if (layer instanceof L.Circle) {
+                // Convert circle to polygon for area calculation
+                const center = layer.getLatLng();
+                const radius = layer.getRadius();
+                const circlePolygon = turf.circle([center.lng, center.lat], radius / 1000, {units: 'kilometers'});
+                area = turf.area(circlePolygon);
+                
+                // Get the actual circle's latlngs for display
+                latlngs = layer.getLatLngs ? layer.getLatLngs() : null;
+                formData.shapeType = 'circle';
+                formData.circleCenter = center;
+                formData.circleRadius = radius;
+            } else {
+                latlngs = layer.getLatLngs()[0];
+                polygon = turf.polygon([latlngs.map(ll => [ll.lng, ll.lat])]);
+                area = turf.area(polygon);
+                formData.shapeType = layer instanceof L.Rectangle ? 'rectangle' : 'polygon';
+            }
+            
+            formData.plotArea = Math.round(area);
+            formData.layer = layer;
+            drawnItems.addLayer(layer);
+            
+            showBuildingForm();
+        }
+        
+        function drawPolygon() {
+            showStatus('Click points on map to draw polygon. Click "Finish" button when done (appears after 3+ points)');
+            currentDrawer = new L.Draw.Polygon(map, {
+                shapeOptions: {
+                    color: '#3498db',
+                    weight: 3,
+                    fillOpacity: 0.2
+                },
+                showArea: true
+            });
+            currentDrawer.enable();
+        }
+        
+        function drawRectangle() {
+            showStatus('Click and drag on map to draw rectangle');
+            currentDrawer = new L.Draw.Rectangle(map, {
+                shapeOptions: {
+                    color: '#3498db',
+                    weight: 3,
+                    fillOpacity: 0.2
+                },
+                showArea: true
+            });
+            currentDrawer.enable();
+        }
+        
+        function drawCircle() {
+            showStatus('Click center point, then drag to set size');
+            currentDrawer = new L.Draw.Circle(map, {
+                shapeOptions: {
+                    color: '#3498db',
+                    weight: 3,
+                    fillOpacity: 0.2
+                },
+                showRadius: true
+            });
+            currentDrawer.enable();
         }
         
         function showStatus(msg) {
             const bar = document.getElementById('status-bar');
             bar.textContent = msg;
             bar.classList.add('active');
-            setTimeout(() => bar.classList.remove('active'), 3000);
+            setTimeout(() => bar.classList.remove('active'), 5000);
         }
         
         function showStartScreen() {
             document.getElementById('controls').innerHTML = `
                 <div class="section">
-                    <div class="section-title">Create New Plot</div>
-                    <div class="info-box">
-                        Click the polygon or rectangle tool on the map (top right corner) to draw plot boundaries.
+                    <div class="section-title">Draw Plot Boundary</div>
+                    
+                    <div class="warning-box">
+                        ⚠️ POLYGON: After clicking points, look for the "Finish" button on the map
                     </div>
-                    <button class="btn btn-primary" onclick="startDrawing()">Start Drawing</button>
+                    
+                    <div class="info-box">
+                        <strong>How to Draw:</strong><br><br>
+                        • <strong>Polygon:</strong> Click points on map, then click the <strong>"Finish"</strong> button that appears<br><br>
+                        • <strong>Rectangle:</strong> Click and drag diagonally<br><br>
+                        • <strong>Circle:</strong> Click center, drag to size
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="drawPolygon()">📐 Draw Polygon</button>
+                    <button class="btn btn-primary" onclick="drawRectangle()">⬜ Draw Rectangle</button>
+                    <button class="btn btn-primary" onclick="drawCircle()">⭕ Draw Circle</button>
                 </div>
                 
                 <div class="section">
@@ -355,15 +426,14 @@
             renderPlotList();
         }
         
-        function startDrawing() {
-            showStatus('Use polygon or rectangle tool on map (top right)');
-        }
-        
         function showBuildingForm() {
             document.getElementById('controls').innerHTML = `
                 <div class="section">
                     <div class="section-title">Plot Details</div>
-                    <div class="info-box">Plot Area: ${formData.plotArea.toLocaleString()} m²</div>
+                    <div class="info-box">
+                        <strong>Plot Area:</strong> ${formData.plotArea.toLocaleString()} m²<br>
+                        <strong>Shape:</strong> ${formData.shapeType}
+                    </div>
                     
                     <div class="form-group">
                         <label>Plot Number</label>
@@ -386,7 +456,7 @@
                     
                     <div class="form-group">
                         <label>Building Color</label>
-                        <input type="color" id="customColor" value="${formData.customColor}" style="height:40px">
+                        <input type="color" id="customColor" value="${formData.customColor}" style="height:40px" onchange="updatePreviewColor()">
                     </div>
                     
                     <div class="slider-group">
@@ -418,7 +488,14 @@
         function updateHeight() {
             const val = document.getElementById('height').value;
             document.getElementById('heightDisplay').textContent = val + 'm';
-            update3DPreview(val, document.getElementById('customColor').value);
+            const color = document.getElementById('customColor') ? document.getElementById('customColor').value : '#FFDC64';
+            update3DPreview(val, color);
+        }
+        
+        function updatePreviewColor() {
+            const height = document.getElementById('height').value;
+            const color = document.getElementById('customColor').value;
+            update3DPreview(height, color);
         }
         
         function updateFootprint() {
@@ -460,8 +537,16 @@
                 height: parseInt(document.getElementById('height').value),
                 plotArea: formData.plotArea,
                 buildingFootprintRatio: parseInt(document.getElementById('footprint').value),
-                latlngs: formData.layer.getLatLngs()[0].map(ll => [ll.lat, ll.lng])
+                shapeType: formData.shapeType
             };
+            
+            // Save coordinates based on shape type
+            if (formData.shapeType === 'circle') {
+                plot.circleCenter = [formData.circleCenter.lat, formData.circleCenter.lng];
+                plot.circleRadius = formData.circleRadius;
+            } else {
+                plot.latlngs = formData.layer.getLatLngs()[0].map(ll => [ll.lat, ll.lng]);
+            }
             
             plots.push(plot);
             
@@ -477,6 +562,7 @@
                 <strong>${plot.plotNumber}</strong><br>
                 District: ${plot.districtName}<br>
                 Land Use: ${LAND_USES[plot.landUse].label}<br>
+                Shape: ${plot.shapeType}<br>
                 Height: ${plot.height}m<br>
                 Plot: ${plot.plotArea.toLocaleString()}m²<br>
                 Building: ${buildingArea.toLocaleString()}m²
@@ -486,7 +572,7 @@
             formData.layer = null;
             
             showStartScreen();
-            showStatus('Plot saved!');
+            showStatus('✓ Plot saved successfully!');
         }
         
         function cancelPlot() {
@@ -511,7 +597,11 @@
             const plot = plots.find(p => p.id === id);
             if (!plot || !plot.layer) return;
             
-            map.fitBounds(plot.layer.getBounds());
+            if (plot.layer.getBounds) {
+                map.fitBounds(plot.layer.getBounds());
+            } else {
+                map.setView(plot.layer.getLatLng(), 18);
+            }
             plot.layer.openPopup();
         }
         
@@ -539,6 +629,7 @@
                                 <div class="plot-number">${p.plotNumber}</div>
                                 <div class="plot-details">
                                     District: ${p.districtName}<br>
+                                    Shape: ${p.shapeType}<br>
                                     Land Use: ${LAND_USES[p.landUse].label}<br>
                                     Height: ${p.height}m<br>
                                     Plot: ${p.plotArea.toLocaleString()}m²<br>
@@ -565,9 +656,12 @@
                     height: p.height,
                     plotArea: p.plotArea,
                     buildingFootprintRatio: p.buildingFootprintRatio,
-                    latlngs: p.latlngs
+                    shapeType: p.shapeType,
+                    latlngs: p.latlngs,
+                    circleCenter: p.circleCenter,
+                    circleRadius: p.circleRadius
                 })),
-                version: '1.07'
+                version: '1.08'
             };
             
             const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
@@ -577,7 +671,7 @@
             a.download = `masterplan-${Date.now()}.json`;
             a.click();
             URL.revokeObjectURL(url);
-            showStatus('Data saved!');
+            showStatus('✓ Data saved!');
         }
         
         function loadData() {
@@ -597,30 +691,47 @@
                     drawnItems.clearLayers();
                     
                     plots.forEach(p => {
-                        const layer = L.polygon(p.latlngs.map(ll => [ll[0], ll[1]]));
-                        layer.setStyle({
-                            fillColor: p.customColor,
-                            fillOpacity: 0.6,
-                            color: p.customColor,
-                            weight: 3
-                        });
+                        let layer;
                         
-                        const buildingArea = Math.round(p.plotArea * p.buildingFootprintRatio / 100);
-                        layer.bindPopup(`
-                            <strong>${p.plotNumber}</strong><br>
-                            District: ${p.districtName}<br>
-                            Land Use: ${LAND_USES[p.landUse].label}<br>
-                            Height: ${p.height}m<br>
-                            Plot: ${p.plotArea.toLocaleString()}m²<br>
-                            Building: ${buildingArea.toLocaleString()}m²
-                        `);
+                        if (p.shapeType === 'circle' && p.circleCenter && p.circleRadius) {
+                            layer = L.circle([p.circleCenter[0], p.circleCenter[1]], {
+                                radius: p.circleRadius
+                            });
+                        } else if (p.latlngs) {
+                            if (p.shapeType === 'rectangle') {
+                                const bounds = L.latLngBounds(p.latlngs.map(ll => [ll[0], ll[1]]));
+                                layer = L.rectangle(bounds);
+                            } else {
+                                layer = L.polygon(p.latlngs.map(ll => [ll[0], ll[1]]));
+                            }
+                        }
                         
-                        drawnItems.addLayer(layer);
-                        p.layer = layer;
+                        if (layer) {
+                            layer.setStyle({
+                                fillColor: p.customColor,
+                                fillOpacity: 0.6,
+                                color: p.customColor,
+                                weight: 3
+                            });
+                            
+                            const buildingArea = Math.round(p.plotArea * p.buildingFootprintRatio / 100);
+                            layer.bindPopup(`
+                                <strong>${p.plotNumber}</strong><br>
+                                District: ${p.districtName}<br>
+                                Land Use: ${LAND_USES[p.landUse].label}<br>
+                                Shape: ${p.shapeType}<br>
+                                Height: ${p.height}m<br>
+                                Plot: ${p.plotArea.toLocaleString()}m²<br>
+                                Building: ${buildingArea.toLocaleString()}m²
+                            `);
+                            
+                            drawnItems.addLayer(layer);
+                            p.layer = layer;
+                        }
                     });
                     
                     showStartScreen();
-                    showStatus('Data loaded!');
+                    showStatus('✓ Data loaded successfully!');
                 } catch (err) {
                     alert('Error loading file: ' + err.message);
                 }
@@ -629,18 +740,18 @@
         }
         
         function screenshot() {
-            showStatus('Capturing...');
+            showStatus('Capturing screenshot...');
             html2canvas(document.getElementById('map')).then(canvas => {
                 const link = document.createElement('a');
                 link.download = `masterplan-${Date.now()}.png`;
                 link.href = canvas.toDataURL();
                 link.click();
-                showStatus('Screenshot saved!');
+                showStatus('✓ Screenshot saved!');
             });
         }
         
         function exportPDF() {
-            showStatus('Generating PDF...');
+            showStatus('Generating PDF report...');
             html2canvas(document.getElementById('map')).then(canvas => {
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF('landscape', 'mm', 'a4');
@@ -662,7 +773,7 @@
                 plots.forEach((p, i) => {
                     if (y > 280) { pdf.addPage(); y = 15; }
                     const buildingArea = Math.round(p.plotArea * p.buildingFootprintRatio / 100);
-                    pdf.text(`${i+1}. ${p.plotNumber} - ${p.districtName}`, 15, y);
+                    pdf.text(`${i+1}. ${p.plotNumber} - ${p.districtName} (${p.shapeType})`, 15, y);
                     y += 5;
                     pdf.text(`   ${LAND_USES[p.landUse].label}, ${p.height}m`, 15, y);
                     y += 5;
@@ -671,7 +782,7 @@
                 });
                 
                 pdf.save(`masterplan-${Date.now()}.pdf`);
-                showStatus('PDF exported!');
+                showStatus('✓ PDF exported successfully!');
             });
         }
         

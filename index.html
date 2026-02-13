@@ -3,22 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Masterplan Interface v1.06b</title>
+    <title>Masterplan Interface v1.07</title>
     
-    <!-- Cesium CSS -->
-    <link href="https://cesium.com/downloads/cesiumjs/releases/1.109/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
     
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             overflow: hidden;
-            background: #f5f5f5;
         }
         
         #app {
@@ -27,7 +22,7 @@
             height: 100vh;
         }
         
-        #cesiumContainer {
+        #map {
             flex: 1;
             position: relative;
         }
@@ -39,7 +34,6 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            z-index: 1000;
         }
         
         #header {
@@ -48,15 +42,8 @@
             color: white;
         }
         
-        #header h1 {
-            font-size: 18px;
-            margin-bottom: 5px;
-        }
-        
-        #header p {
-            font-size: 12px;
-            opacity: 0.8;
-        }
+        #header h1 { font-size: 18px; margin-bottom: 5px; }
+        #header p { font-size: 12px; opacity: 0.8; }
         
         #controls {
             flex: 1;
@@ -70,17 +57,12 @@
             border-bottom: 1px solid #e0e0e0;
         }
         
-        .section:last-child {
-            border-bottom: none;
-        }
-        
         .section-title {
             font-size: 14px;
             font-weight: 600;
             color: #2c3e50;
             margin-bottom: 15px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
         
         .form-group {
@@ -95,8 +77,7 @@
             font-weight: 500;
         }
         
-        .form-group input,
-        .form-group select {
+        .form-group input, .form-group select {
             width: 100%;
             padding: 10px;
             border: 1px solid #ddd;
@@ -119,10 +100,6 @@
         
         .slider-group input[type="range"] {
             width: 100%;
-            height: 6px;
-            border-radius: 3px;
-            background: #e0e0e0;
-            outline: none;
         }
         
         .btn {
@@ -133,38 +110,16 @@
             font-weight: 600;
             cursor: pointer;
             width: 100%;
-            transition: background 0.2s;
             margin-bottom: 10px;
+            transition: background 0.2s;
         }
         
-        .btn-primary {
-            background: #3498db;
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background: #2980b9;
-        }
-        
-        .btn-secondary {
-            background: #95a5a6;
-            color: white;
-        }
-        
-        .btn-success {
-            background: #27ae60;
-            color: white;
-        }
-        
-        .btn-warning {
-            background: #e67e22;
-            color: white;
-        }
-        
-        .btn-danger {
-            background: #e74c3c;
-            color: white;
-        }
+        .btn-primary { background: #3498db; color: white; }
+        .btn-primary:hover { background: #2980b9; }
+        .btn-secondary { background: #95a5a6; color: white; }
+        .btn-success { background: #27ae60; color: white; }
+        .btn-warning { background: #e67e22; color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
         
         .btn-group {
             display: grid;
@@ -173,27 +128,17 @@
             margin-bottom: 15px;
         }
         
-        .btn-group .btn {
-            margin-bottom: 0;
-        }
-        
-        .plot-list {
-            max-height: 300px;
-            overflow-y: auto;
-            border: 1px solid #e0e0e0;
-            border-radius: 4px;
-        }
+        .btn-group .btn { margin-bottom: 0; }
         
         .plot-item {
             padding: 12px;
-            border-bottom: 1px solid #f0f0f0;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            margin-bottom: 10px;
             cursor: pointer;
-            transition: background 0.2s;
         }
         
-        .plot-item:hover {
-            background: #f8f9fa;
-        }
+        .plot-item:hover { background: #f8f9fa; }
         
         .plot-number {
             font-weight: 600;
@@ -223,21 +168,8 @@
             flex: 1;
         }
         
-        .btn-edit {
-            background: #3498db;
-            color: white;
-        }
-        
-        .btn-delete {
-            background: #e74c3c;
-            color: white;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: #95a5a6;
-        }
+        .btn-edit { background: #3498db; color: white; }
+        .btn-delete { background: #e74c3c; color: white; }
         
         .info-box {
             background: #ecf0f1;
@@ -247,6 +179,12 @@
             color: #555;
             margin-bottom: 15px;
             line-height: 1.5;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #95a5a6;
         }
         
         .status-bar {
@@ -259,80 +197,56 @@
             padding: 12px 24px;
             border-radius: 4px;
             font-size: 13px;
-            z-index: 1001;
+            z-index: 1000;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
             display: none;
         }
         
-        .status-bar.active {
-            display: block;
-        }
-
-        /* Hide Cesium credits */
-        .cesium-credit-logoContainer {
-            display: none !important;
+        .status-bar.active { display: block; }
+        
+        .building-3d-preview {
+            background: linear-gradient(180deg, #87CEEB 0%, #E0E0E0 100%);
+            padding: 20px;
+            border-radius: 4px;
+            margin: 15px 0;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            height: 200px;
+            position: relative;
         }
         
-        .cesium-credit-textContainer {
-            display: none !important;
-        }
-
-        .drawing-instructions {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(255, 255, 255, 0.95);
-            padding: 15px 25px;
-            border-radius: 4px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            z-index: 1001;
-            display: none;
-            font-size: 13px;
-            color: #2c3e50;
-            font-weight: 500;
-        }
-
-        .drawing-instructions.active {
-            display: block;
+        .building-3d {
+            position: relative;
+            transition: all 0.3s;
         }
     </style>
 </head>
 <body>
     <div id="app">
-        <div id="cesiumContainer">
+        <div id="map">
             <div id="status-bar" class="status-bar"></div>
-            <div id="drawing-instructions" class="drawing-instructions"></div>
         </div>
         <div id="sidebar">
             <div id="header">
                 <h1>Masterplan Interface</h1>
-                <p>Dubai Development Site - v1.06b (Cesium 3D)</p>
+                <p>Dubai Development Site - v1.07</p>
             </div>
-            <div id="controls">
-                <!-- Controls will be inserted here -->
-            </div>
+            <div id="controls"></div>
         </div>
     </div>
 
-    <!-- Cesium JS -->
-    <script src="https://cesium.com/downloads/cesiumjs/releases/1.109/Build/Cesium/Cesium.js"></script>
-    <!-- html2canvas for screenshots -->
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    <!-- jsPDF for PDF export -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <script>
-        // Cesium Ion token - FREE, no credit card required
-        Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlYWE1OWUxNy1mMWZiLTQzYjYtYTQ0OS1kMWFjYmFkNjc5YzYiLCJpZCI6NTc3MzMsImlhdCI6MTYyNzg0NTE4Mn0.XcKpgANiY19MC4bdFUXMVEBToBmqS8kuYpUlxJHYZxk';
-
-        // Configuration
-        const INITIAL_VIEW = {
-            lng: 55.2708,
-            lat: 25.2048,
-            height: 1000
-        };
-
+        console.log('Starting v1.07...');
+        
+        const INITIAL_VIEW = { lat: 25.2048, lng: 55.2708, zoom: 17 };
+        
         const LAND_USES = {
             residential: { label: 'Residential', color: '#FFDC64' },
             commercial: { label: 'Commercial', color: '#FF6464' },
@@ -344,14 +258,9 @@
             community: { label: 'Community', color: '#64FF96' },
             open_space: { label: 'Open Space', color: '#96FF96' }
         };
-
-        // State
-        let viewer;
-        let plots = [];
-        let isDrawing = false;
-        let drawingPoints = [];
-        let currentPolygonEntity = null;
         
+        let map, drawnItems, drawControl;
+        let plots = [];
         let formData = {
             plotNumber: '',
             districtName: '',
@@ -360,423 +269,292 @@
             height: 30,
             plotArea: 0,
             buildingFootprintRatio: 60,
-            coordinates: null
+            layer: null
         };
-
-        // Initialize Cesium
-        function initCesium() {
-            console.log('Initializing Cesium...');
+        
+        function initMap() {
+            console.log('Initializing map...');
             
-            viewer = new Cesium.Viewer('cesiumContainer', {
-                terrainProvider: Cesium.createWorldTerrain(),
-                imageryProvider: new Cesium.IonImageryProvider({ assetId: 2 }),
-                baseLayerPicker: false,
-                geocoder: false,
-                homeButton: true,
-                sceneModePicker: false,
-                navigationHelpButton: false,
-                animation: false,
-                timeline: false,
-                fullscreenButton: false,
-                vrButton: false,
-                creditContainer: document.createElement('div')
-            });
-
-            // Fly to Dubai
-            viewer.camera.flyTo({
-                destination: Cesium.Cartesian3.fromDegrees(
-                    INITIAL_VIEW.lng,
-                    INITIAL_VIEW.lat,
-                    INITIAL_VIEW.height
-                ),
-                orientation: {
-                    heading: Cesium.Math.toRadians(0),
-                    pitch: Cesium.Math.toRadians(-45),
-                    roll: 0.0
-                }
-            });
-
-            // Add click handler for drawing
-            const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+            map = L.map('map').setView([INITIAL_VIEW.lat, INITIAL_VIEW.lng], INITIAL_VIEW.zoom);
             
-            handler.setInputAction(function(click) {
-                if (!isDrawing) return;
-
-                const earthPosition = viewer.camera.pickEllipsoid(
-                    click.position,
-                    viewer.scene.globe.ellipsoid
-                );
-
-                if (earthPosition) {
-                    const cartographic = Cesium.Cartographic.fromCartesian(earthPosition);
-                    const lng = Cesium.Math.toDegrees(cartographic.longitude);
-                    const lat = Cesium.Math.toDegrees(cartographic.latitude);
-
-                    drawingPoints.push({ lng, lat });
-                    updateDrawingPolygon();
-                }
-            }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-            // Right-click to finish drawing
-            handler.setInputAction(function() {
-                if (isDrawing && drawingPoints.length >= 3) {
-                    finishDrawing();
-                }
-            }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
-
-            console.log('Cesium initialized successfully');
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap',
+                maxZoom: 19
+            }).addTo(map);
+            
+            drawnItems = new L.FeatureGroup();
+            map.addLayer(drawnItems);
+            
+            drawControl = new L.Control.Draw({
+                position: 'topright',
+                draw: {
+                    polygon: {
+                        allowIntersection: false,
+                        shapeOptions: { color: '#3498db' }
+                    },
+                    polyline: false,
+                    rectangle: true,
+                    circle: false,
+                    marker: false,
+                    circlemarker: false
+                },
+                edit: { featureGroup: drawnItems, remove: false }
+            });
+            
+            map.addControl(drawControl);
+            
+            map.on(L.Draw.Event.CREATED, function(e) {
+                const layer = e.layer;
+                const latlngs = layer.getLatLngs()[0];
+                const polygon = turf.polygon([latlngs.map(ll => [ll.lng, ll.lat])]);
+                const area = turf.area(polygon);
+                
+                formData.plotArea = Math.round(area);
+                formData.layer = layer;
+                drawnItems.addLayer(layer);
+                
+                showBuildingForm();
+            });
+            
+            console.log('Map initialized');
             showStartScreen();
         }
-
-        // Show status message
-        function showStatus(message) {
-            const statusBar = document.getElementById('status-bar');
-            statusBar.textContent = message;
-            statusBar.classList.add('active');
-            setTimeout(() => statusBar.classList.remove('active'), 4000);
+        
+        function showStatus(msg) {
+            const bar = document.getElementById('status-bar');
+            bar.textContent = msg;
+            bar.classList.add('active');
+            setTimeout(() => bar.classList.remove('active'), 3000);
         }
-
-        // Show drawing instructions
-        function showDrawingInstructions(message) {
-            const instructions = document.getElementById('drawing-instructions');
-            instructions.textContent = message;
-            instructions.classList.add('active');
-        }
-
-        // Hide drawing instructions
-        function hideDrawingInstructions() {
-            document.getElementById('drawing-instructions').classList.remove('active');
-        }
-
-        // Show start screen
+        
         function showStartScreen() {
-            const html = `
+            document.getElementById('controls').innerHTML = `
                 <div class="section">
                     <div class="section-title">Create New Plot</div>
                     <div class="info-box">
-                        <strong>Cesium 3D Globe</strong><br>
-                        • Free, no credit card required<br>
-                        • Photorealistic 3D terrain<br>
-                        • Full satellite imagery<br>
-                        • True 3D building visualization
+                        Click the polygon or rectangle tool on the map (top right corner) to draw plot boundaries.
                     </div>
-                    
-                    <button class="btn btn-primary" onclick="startDrawing()">
-                        📐 Draw Plot Boundary
-                    </button>
-                </div>
-
-                <div class="section">
-                    <div class="section-title">Save & Export</div>
-                    
-                    <div class="btn-group">
-                        <button class="btn btn-success" onclick="saveToFile()">💾 Save Data</button>
-                        <button class="btn btn-warning" onclick="loadFromFile()">📂 Load Data</button>
-                    </div>
-                    
-                    <div class="btn-group">
-                        <button class="btn btn-primary" onclick="takeScreenshot()">📸 Screenshot</button>
-                        <button class="btn btn-danger" onclick="exportPDF()">📄 Export PDF</button>
-                    </div>
-                    
-                    <input type="file" id="file-input" style="display: none;" accept=".json" onchange="handleFileLoad(event)">
+                    <button class="btn btn-primary" onclick="startDrawing()">Start Drawing</button>
                 </div>
                 
-                <div id="plot-list-container"></div>
+                <div class="section">
+                    <div class="section-title">Save & Export</div>
+                    <div class="btn-group">
+                        <button class="btn btn-success" onclick="saveData()">💾 Save</button>
+                        <button class="btn btn-warning" onclick="loadData()">📂 Load</button>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="screenshot()">📸 Screenshot</button>
+                        <button class="btn btn-danger" onclick="exportPDF()">📄 PDF</button>
+                    </div>
+                    <input type="file" id="file-input" style="display:none" accept=".json" onchange="handleFile(event)">
+                </div>
+                
+                <div id="plot-list"></div>
             `;
-            
-            document.getElementById('controls').innerHTML = html;
             renderPlotList();
         }
-
-        // Start drawing
+        
         function startDrawing() {
-            isDrawing = true;
-            drawingPoints = [];
-            
-            showDrawingInstructions('Left-click to add points. Right-click to finish polygon (min 3 points)');
-            showStatus('Drawing mode active');
+            showStatus('Use polygon or rectangle tool on map (top right)');
         }
-
-        // Update drawing polygon
-        function updateDrawingPolygon() {
-            if (drawingPoints.length < 2) {
-                // Add point marker
-                viewer.entities.add({
-                    position: Cesium.Cartesian3.fromDegrees(
-                        drawingPoints[0].lng,
-                        drawingPoints[0].lat
-                    ),
-                    point: {
-                        pixelSize: 8,
-                        color: Cesium.Color.fromCssColorString('#3498db')
-                    }
-                });
-                return;
-            }
-
-            // Remove old polygon
-            if (currentPolygonEntity) {
-                viewer.entities.remove(currentPolygonEntity);
-            }
-
-            // Create polygon
-            const positions = drawingPoints.map(p => 
-                Cesium.Cartesian3.fromDegrees(p.lng, p.lat)
-            );
-
-            currentPolygonEntity = viewer.entities.add({
-                polygon: {
-                    hierarchy: positions,
-                    material: Cesium.Color.fromCssColorString('#3498db').withAlpha(0.3),
-                    outline: true,
-                    outlineColor: Cesium.Color.fromCssColorString('#3498db'),
-                    outlineWidth: 3
-                }
-            });
-
-            showStatus(`Points: ${drawingPoints.length}. Right-click to finish.`);
-        }
-
-        // Finish drawing
-        function finishDrawing() {
-            isDrawing = false;
-            hideDrawingInstructions();
-
-            // Calculate area
-            const area = calculatePolygonArea(drawingPoints);
-            formData.plotArea = Math.round(area);
-            formData.coordinates = [...drawingPoints];
-
-            showBuildingPlacementForm();
-        }
-
-        // Calculate polygon area
-        function calculatePolygonArea(points) {
-            if (points.length < 3) return 0;
-
-            // Convert to Cartesian
-            const positions = points.map(p =>
-                Cesium.Cartesian3.fromDegrees(p.lng, p.lat)
-            );
-
-            // Calculate area using Cesium
-            const surfaceArea = Cesium.PolygonGeometry.computeArea2D(
-                positions,
-                Cesium.Ellipsoid.WGS84
-            );
-
-            return surfaceArea;
-        }
-
-        // Show building placement form
-        function showBuildingPlacementForm() {
-            const html = `
+        
+        function showBuildingForm() {
+            document.getElementById('controls').innerHTML = `
                 <div class="section">
                     <div class="section-title">Plot Details</div>
-                    
-                    <div class="info-box">
-                        <strong>Plot Area:</strong> ${formData.plotArea.toLocaleString()} m²
-                    </div>
+                    <div class="info-box">Plot Area: ${formData.plotArea.toLocaleString()} m²</div>
                     
                     <div class="form-group">
                         <label>Plot Number</label>
-                        <input type="text" id="input-plotNumber" value="${formData.plotNumber}" placeholder="e.g., P-101">
+                        <input type="text" id="plotNumber" placeholder="e.g., P-101">
                     </div>
-
+                    
                     <div class="form-group">
                         <label>District Name</label>
-                        <input type="text" id="input-districtName" value="${formData.districtName}" placeholder="e.g., District A">
+                        <input type="text" id="districtName" placeholder="e.g., District A">
                     </div>
-
+                    
                     <div class="form-group">
                         <label>Land Use</label>
-                        <select id="input-landUse">
-                            ${Object.entries(LAND_USES).map(([key, value]) => 
-                                `<option value="${key}" ${formData.landUse === key ? 'selected' : ''}>${value.label}</option>`
+                        <select id="landUse">
+                            ${Object.entries(LAND_USES).map(([k,v]) => 
+                                `<option value="${k}">${v.label}</option>`
                             ).join('')}
                         </select>
                     </div>
-
+                    
                     <div class="form-group">
                         <label>Building Color</label>
-                        <input type="color" id="input-customColor" value="${formData.customColor}" style="height: 40px;">
+                        <input type="color" id="customColor" value="${formData.customColor}" style="height:40px">
                     </div>
-
+                    
                     <div class="slider-group">
-                        <label>
-                            <span>Building Height</span>
-                            <span id="height-display">${formData.height}m</span>
-                        </label>
-                        <input type="range" id="input-height" min="5" max="200" value="${formData.height}">
+                        <label><span>Height</span><span id="heightDisplay">30m</span></label>
+                        <input type="range" id="height" min="5" max="200" value="30" oninput="updateHeight()">
                     </div>
-
+                    
                     <div class="slider-group">
-                        <label>
-                            <span>Building Footprint</span>
-                            <span id="footprint-display">${formData.buildingFootprintRatio}%</span>
-                        </label>
-                        <input type="range" id="input-footprint" min="10" max="100" value="${formData.buildingFootprintRatio}">
-                        <div style="font-size: 11px; color: #7f8c8d; margin-top: 5px;" id="footprint-area">
-                            ${Math.round(formData.plotArea * formData.buildingFootprintRatio / 100).toLocaleString()} m² building area
-                        </div>
+                        <label><span>Footprint</span><span id="footprintDisplay">60%</span></label>
+                        <input type="range" id="footprint" min="10" max="100" value="60" oninput="updateFootprint()">
+                        <div id="footprintArea" style="font-size:11px;color:#7f8c8d"></div>
+                    </div>
+                    
+                    <div class="building-3d-preview">
+                        <div class="building-3d" id="preview3d"></div>
                     </div>
                 </div>
-
+                
                 <div class="section">
                     <button class="btn btn-success" onclick="savePlot()">✓ Save Plot</button>
                     <button class="btn btn-secondary" onclick="cancelPlot()">Cancel</button>
                 </div>
             `;
             
-            document.getElementById('controls').innerHTML = html;
-            attachFormListeners();
+            updateFootprint();
+            updateHeight();
         }
-
-        // Attach form listeners
-        function attachFormListeners() {
-            ['plotNumber', 'districtName', 'landUse', 'customColor', 'height', 'footprint'].forEach(field => {
-                const input = document.getElementById('input-' + field);
-                if (!input) return;
-                
-                input.addEventListener('input', (e) => {
-                    if (field === 'height') {
-                        formData.height = parseFloat(e.target.value);
-                        document.getElementById('height-display').textContent = formData.height + 'm';
-                        updatePreview();
-                    } else if (field === 'footprint') {
-                        formData.buildingFootprintRatio = parseFloat(e.target.value);
-                        document.getElementById('footprint-display').textContent = formData.buildingFootprintRatio + '%';
-                        const area = Math.round(formData.plotArea * formData.buildingFootprintRatio / 100);
-                        document.getElementById('footprint-area').textContent = area.toLocaleString() + ' m² building area';
-                        updatePreview();
-                    } else if (field === 'customColor') {
-                        formData.customColor = e.target.value;
-                        updatePreview();
-                    } else {
-                        formData[field] = e.target.value;
-                    }
-                });
-            });
+        
+        function updateHeight() {
+            const val = document.getElementById('height').value;
+            document.getElementById('heightDisplay').textContent = val + 'm';
+            update3DPreview(val, document.getElementById('customColor').value);
         }
-
-        // Update preview
-        function updatePreview() {
-            if (currentPolygonEntity) {
-                viewer.entities.remove(currentPolygonEntity);
-            }
-
-            const positions = formData.coordinates.map(p =>
-                Cesium.Cartesian3.fromDegrees(p.lng, p.lat)
-            );
-
-            currentPolygonEntity = viewer.entities.add({
-                polygon: {
-                    hierarchy: positions,
-                    extrudedHeight: formData.height,
-                    material: Cesium.Color.fromCssColorString(formData.customColor).withAlpha(0.8),
-                    outline: true,
-                    outlineColor: Cesium.Color.WHITE,
-                    outlineWidth: 2
-                }
-            });
+        
+        function updateFootprint() {
+            const val = document.getElementById('footprint').value;
+            document.getElementById('footprintDisplay').textContent = val + '%';
+            const area = Math.round(formData.plotArea * val / 100);
+            document.getElementById('footprintArea').textContent = area.toLocaleString() + ' m² building area';
         }
-
-        // Save plot
+        
+        function update3DPreview(height, color) {
+            const preview = document.getElementById('preview3d');
+            if (!preview) return;
+            
+            const h = Math.min(height * 0.8, 160);
+            const w = 60;
+            
+            preview.style.width = w + 'px';
+            preview.style.height = h + 'px';
+            preview.style.background = color;
+            preview.style.border = '2px solid rgba(0,0,0,0.2)';
+            preview.style.boxShadow = '5px 5px 15px rgba(0,0,0,0.3)';
+        }
+        
         function savePlot() {
-            if (!formData.plotNumber || !formData.districtName) {
+            const plotNumber = document.getElementById('plotNumber').value;
+            const districtName = document.getElementById('districtName').value;
+            
+            if (!plotNumber || !districtName) {
                 alert('Please enter Plot Number and District Name');
                 return;
             }
-
+            
             const plot = {
                 id: Date.now(),
-                ...formData
+                plotNumber,
+                districtName,
+                landUse: document.getElementById('landUse').value,
+                customColor: document.getElementById('customColor').value,
+                height: parseInt(document.getElementById('height').value),
+                plotArea: formData.plotArea,
+                buildingFootprintRatio: parseInt(document.getElementById('footprint').value),
+                latlngs: formData.layer.getLatLngs()[0].map(ll => [ll.lat, ll.lng])
             };
-
+            
             plots.push(plot);
-
-            // Remove temp polygon
-            if (currentPolygonEntity) {
-                viewer.entities.remove(currentPolygonEntity);
-            }
-
-            // Add final 3D building
-            add3DBuilding(plot);
-
-            // Clear points
-            viewer.entities.removeAll();
-            drawingPoints = [];
-            currentPolygonEntity = null;
-
-            // Reset
-            resetFormData();
-            showStartScreen();
-            showStatus('Plot saved successfully!');
-        }
-
-        // Add 3D building
-        function add3DBuilding(plot) {
-            const positions = plot.coordinates.map(p =>
-                Cesium.Cartesian3.fromDegrees(p.lng, p.lat)
-            );
-
-            const entity = viewer.entities.add({
-                name: plot.plotNumber,
-                polygon: {
-                    hierarchy: positions,
-                    extrudedHeight: plot.height,
-                    material: Cesium.Color.fromCssColorString(plot.customColor).withAlpha(0.8),
-                    outline: true,
-                    outlineColor: Cesium.Color.WHITE,
-                    outlineWidth: 2
-                },
-                description: `
-                    <strong>${plot.plotNumber}</strong><br>
-                    District: ${plot.districtName}<br>
-                    Land Use: ${LAND_USES[plot.landUse].label}<br>
-                    Height: ${plot.height}m<br>
-                    Plot: ${plot.plotArea.toLocaleString()}m²<br>
-                    Building: ${Math.round(plot.plotArea * plot.buildingFootprintRatio / 100).toLocaleString()}m²
-                `
+            
+            formData.layer.setStyle({
+                fillColor: plot.customColor,
+                fillOpacity: 0.6,
+                color: plot.customColor,
+                weight: 3
             });
-
-            plot.entity = entity;
+            
+            const buildingArea = Math.round(plot.plotArea * plot.buildingFootprintRatio / 100);
+            formData.layer.bindPopup(`
+                <strong>${plot.plotNumber}</strong><br>
+                District: ${plot.districtName}<br>
+                Land Use: ${LAND_USES[plot.landUse].label}<br>
+                Height: ${plot.height}m<br>
+                Plot: ${plot.plotArea.toLocaleString()}m²<br>
+                Building: ${buildingArea.toLocaleString()}m²
+            `);
+            
+            plot.layer = formData.layer;
+            formData.layer = null;
+            
+            showStartScreen();
+            showStatus('Plot saved!');
         }
-
-        // Cancel plot
+        
         function cancelPlot() {
-            isDrawing = false;
-            hideDrawingInstructions();
-            
-            if (currentPolygonEntity) {
-                viewer.entities.remove(currentPolygonEntity);
+            if (formData.layer) {
+                drawnItems.removeLayer(formData.layer);
+                formData.layer = null;
             }
-            
-            viewer.entities.removeAll();
-            drawingPoints = [];
-            currentPolygonEntity = null;
-            
-            resetFormData();
             showStartScreen();
         }
-
-        // Reset form data
-        function resetFormData() {
-            formData = {
-                plotNumber: '',
-                districtName: '',
-                landUse: 'residential',
-                customColor: '#FFDC64',
-                height: 30,
-                plotArea: 0,
-                buildingFootprintRatio: 60,
-                coordinates: null
-            };
+        
+        function deletePlot(id) {
+            const plot = plots.find(p => p.id === id);
+            if (!plot || !confirm(`Delete ${plot.plotNumber}?`)) return;
+            
+            if (plot.layer) drawnItems.removeLayer(plot.layer);
+            plots = plots.filter(p => p.id !== id);
+            renderPlotList();
+            showStatus('Plot deleted');
         }
-
-        // Save to file
-        function saveToFile() {
+        
+        function flyToPlot(id) {
+            const plot = plots.find(p => p.id === id);
+            if (!plot || !plot.layer) return;
+            
+            map.fitBounds(plot.layer.getBounds());
+            plot.layer.openPopup();
+        }
+        
+        function renderPlotList() {
+            const container = document.getElementById('plot-list');
+            if (!container) return;
+            
+            if (plots.length === 0) {
+                container.innerHTML = `
+                    <div class="section">
+                        <div class="section-title">Existing Plots (0)</div>
+                        <div class="empty-state"><p>No plots created yet.</p></div>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="section">
+                    <div class="section-title">Existing Plots (${plots.length})</div>
+                    ${plots.map(p => {
+                        const buildingArea = Math.round(p.plotArea * p.buildingFootprintRatio / 100);
+                        return `
+                            <div class="plot-item" onclick="flyToPlot(${p.id})">
+                                <div class="plot-number">${p.plotNumber}</div>
+                                <div class="plot-details">
+                                    District: ${p.districtName}<br>
+                                    Land Use: ${LAND_USES[p.landUse].label}<br>
+                                    Height: ${p.height}m<br>
+                                    Plot: ${p.plotArea.toLocaleString()}m²<br>
+                                    Building: ${buildingArea.toLocaleString()}m²
+                                </div>
+                                <div class="plot-actions">
+                                    <button class="btn-small btn-delete" onclick="event.stopPropagation(); deletePlot(${p.id})">Delete</button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+        
+        function saveData() {
             const data = {
                 plots: plots.map(p => ({
                     id: p.id,
@@ -787,185 +565,119 @@
                     height: p.height,
                     plotArea: p.plotArea,
                     buildingFootprintRatio: p.buildingFootprintRatio,
-                    coordinates: p.coordinates
+                    latlngs: p.latlngs
                 })),
-                timestamp: new Date().toISOString(),
-                version: '1.06b'
+                version: '1.07'
             };
-
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = `masterplan-${Date.now()}.json`;
             a.click();
             URL.revokeObjectURL(url);
-
-            showStatus('Data saved to file!');
+            showStatus('Data saved!');
         }
-
-        // Load from file
-        function loadFromFile() {
+        
+        function loadData() {
             document.getElementById('file-input').click();
         }
-
-        // Handle file load
-        function handleFileLoad(event) {
-            const file = event.target.files[0];
+        
+        function handleFile(e) {
+            const file = e.target.files[0];
             if (!file) return;
-
+            
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
                     const data = JSON.parse(e.target.result);
                     plots = data.plots || [];
                     
-                    // Clear existing entities
-                    viewer.entities.removeAll();
+                    drawnItems.clearLayers();
                     
-                    // Re-add all buildings
-                    plots.forEach(plot => add3DBuilding(plot));
+                    plots.forEach(p => {
+                        const layer = L.polygon(p.latlngs.map(ll => [ll[0], ll[1]]));
+                        layer.setStyle({
+                            fillColor: p.customColor,
+                            fillOpacity: 0.6,
+                            color: p.customColor,
+                            weight: 3
+                        });
+                        
+                        const buildingArea = Math.round(p.plotArea * p.buildingFootprintRatio / 100);
+                        layer.bindPopup(`
+                            <strong>${p.plotNumber}</strong><br>
+                            District: ${p.districtName}<br>
+                            Land Use: ${LAND_USES[p.landUse].label}<br>
+                            Height: ${p.height}m<br>
+                            Plot: ${p.plotArea.toLocaleString()}m²<br>
+                            Building: ${buildingArea.toLocaleString()}m²
+                        `);
+                        
+                        drawnItems.addLayer(layer);
+                        p.layer = layer;
+                    });
                     
                     showStartScreen();
-                    showStatus('Data loaded successfully!');
+                    showStatus('Data loaded!');
                 } catch (err) {
                     alert('Error loading file: ' + err.message);
                 }
             };
             reader.readAsText(file);
         }
-
-        // Take screenshot
-        function takeScreenshot() {
-            showStatus('Capturing screenshot...');
-            
-            html2canvas(document.getElementById('cesiumContainer')).then(canvas => {
+        
+        function screenshot() {
+            showStatus('Capturing...');
+            html2canvas(document.getElementById('map')).then(canvas => {
                 const link = document.createElement('a');
-                link.download = `masterplan-screenshot-${Date.now()}.png`;
+                link.download = `masterplan-${Date.now()}.png`;
                 link.href = canvas.toDataURL();
                 link.click();
                 showStatus('Screenshot saved!');
             });
         }
-
-        // Export PDF
+        
         function exportPDF() {
-            showStatus('Generating PDF report...');
-            
-            html2canvas(document.getElementById('cesiumContainer')).then(canvas => {
+            showStatus('Generating PDF...');
+            html2canvas(document.getElementById('map')).then(canvas => {
                 const { jsPDF } = window.jspdf;
                 const pdf = new jsPDF('landscape', 'mm', 'a4');
                 
-                // Add title
                 pdf.setFontSize(20);
                 pdf.text('Masterplan Report', 15, 15);
                 
-                // Add date
                 pdf.setFontSize(10);
                 pdf.text(`Generated: ${new Date().toLocaleString()}`, 15, 22);
                 
-                // Add map image
                 const imgData = canvas.toDataURL('image/png');
                 pdf.addImage(imgData, 'PNG', 15, 30, 267, 150);
                 
-                // Add plot summary
                 pdf.setFontSize(14);
                 pdf.text('Plot Summary', 15, 190);
                 
                 pdf.setFontSize(10);
                 let y = 200;
-                plots.forEach((plot, i) => {
-                    if (y > 280) {
-                        pdf.addPage();
-                        y = 15;
-                    }
-                    const buildingArea = Math.round(plot.plotArea * plot.buildingFootprintRatio / 100);
-                    pdf.text(`${i + 1}. ${plot.plotNumber} - ${plot.districtName}`, 15, y);
+                plots.forEach((p, i) => {
+                    if (y > 280) { pdf.addPage(); y = 15; }
+                    const buildingArea = Math.round(p.plotArea * p.buildingFootprintRatio / 100);
+                    pdf.text(`${i+1}. ${p.plotNumber} - ${p.districtName}`, 15, y);
                     y += 5;
-                    pdf.text(`   Land Use: ${LAND_USES[plot.landUse].label}, Height: ${plot.height}m`, 15, y);
+                    pdf.text(`   ${LAND_USES[p.landUse].label}, ${p.height}m`, 15, y);
                     y += 5;
-                    pdf.text(`   Plot: ${plot.plotArea.toLocaleString()}m², Building: ${buildingArea.toLocaleString()}m²`, 15, y);
+                    pdf.text(`   Plot: ${p.plotArea.toLocaleString()}m², Building: ${buildingArea.toLocaleString()}m²`, 15, y);
                     y += 8;
                 });
                 
-                pdf.save(`masterplan-report-${Date.now()}.pdf`);
+                pdf.save(`masterplan-${Date.now()}.pdf`);
                 showStatus('PDF exported!');
             });
         }
-
-        // Delete plot
-        function deletePlot(id) {
-            const plot = plots.find(p => p.id === id);
-            if (!plot) return;
-            
-            if (!confirm(`Delete plot ${plot.plotNumber}?`)) return;
-            
-            if (plot.entity) {
-                viewer.entities.remove(plot.entity);
-            }
-            
-            plots = plots.filter(p => p.id !== id);
-            renderPlotList();
-            showStatus('Plot deleted');
-        }
-
-        // Fly to plot
-        function flyToPlot(plot) {
-            if (plot.entity) {
-                viewer.flyTo(plot.entity, {
-                    offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-45), plot.height * 3)
-                });
-            }
-        }
-
-        // Render plot list
-        function renderPlotList() {
-            const container = document.getElementById('plot-list-container');
-            if (!container) return;
-
-            if (plots.length === 0) {
-                container.innerHTML = `
-                    <div class="section">
-                        <div class="section-title">Existing Plots (0)</div>
-                        <div class="empty-state">
-                            <p>No plots created yet.</p>
-                        </div>
-                    </div>
-                `;
-                return;
-            }
-
-            const list = plots.map(plot => {
-                const buildingArea = Math.round(plot.plotArea * plot.buildingFootprintRatio / 100);
-                return `
-                    <div class="plot-item" onclick="flyToPlot(plots.find(p => p.id === ${plot.id}))">
-                        <div class="plot-number">${plot.plotNumber}</div>
-                        <div class="plot-details">
-                            <strong>District:</strong> ${plot.districtName}<br>
-                            <strong>Land Use:</strong> ${LAND_USES[plot.landUse].label}<br>
-                            <strong>Height:</strong> ${plot.height}m<br>
-                            <strong>Plot:</strong> ${plot.plotArea.toLocaleString()}m²<br>
-                            <strong>Building:</strong> ${buildingArea.toLocaleString()}m²
-                        </div>
-                        <div class="plot-actions">
-                            <button class="btn-small btn-delete" onclick="event.stopPropagation(); deletePlot(${plot.id})">Delete</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            container.innerHTML = `
-                <div class="section">
-                    <div class="section-title">Existing Plots (${plots.length})</div>
-                    <div class="plot-list">${list}</div>
-                </div>
-            `;
-        }
-
-        // Initialize
+        
         window.addEventListener('load', () => {
-            console.log('Initializing Cesium v1.06b...');
-            initCesium();
+            console.log('Page loaded, initializing...');
+            initMap();
         });
     </script>
 </body>
